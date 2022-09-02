@@ -1,0 +1,460 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(irrNA)
+```
+
+
+```{r}
+raw1 <- read.csv("/Volumes/Research Project/Trait_TestRetest/WeekTRT/input/trtRaw1.csv", header=TRUE)
+raw2 <- read.csv("/Volumes/Research Project/Trait_TestRetest/WeekTRT/input/trtRaw2.csv", header=TRUE)
+posTraits <- read.csv("~/Google Drive/Volumes/Research Project/Trait Network_Behaviral/generating network/output/allPosCents.csv")
+
+negTraits <- read.csv("~/Google Drive/Volumes/Research Project/Trait Network_Behaviral/generating network/output/allNegCents.csv")
+```
+
+
+```{r}
+is.emptyString <- function(input){
+  if(input==''){
+    output <- TRUE
+  }else{
+    output <- FALSE
+  }
+  return(output)
+}
+traitSubs1 <- grep("Accurate",colnames(raw1)):grep("Worrier",colnames(raw1))
+traitSubs2 <- grep("Accurate",colnames(raw2)):grep("Worrier",colnames(raw2))
+missRows1 <- colSums(apply(raw1[traitSubs1],1,is.na))
+missRows2 <- colSums(apply(raw2[traitSubs2],1,is.na))
+badRows1 <- missRows1 > 30
+badRows2 <- missRows2 > 30
+raw1 <- raw1[!badRows1,]
+raw2 <- raw2[!badRows2,]
+raw1 <- subset(raw1, id != 47001)
+raw2 <- subset(raw2, id != 47001)
+```
+
+```{r}
+evalProp1 <- raw1 %>% select(Accurate:Worrier) %>% apply(1, function(x) prop.table(table(x)))
+evalProp2 <- raw2 %>% select(Accurate:Worrier) %>% apply(1, function(x) prop.table(table(x)))
+  
+raw1$evalRepeat <- as.numeric(unlist(lapply(evalProp1, function(x) any(x>.95))))
+raw2$evalRepeat <- as.numeric(unlist(lapply(evalProp2, function(x) any(x>.95))))
+
+raw1 <- raw1 %>% filter(evalRepeat==0)
+raw2 <- raw2 %>% filter(evalRepeat==0)
+```
+
+
+# Detect and remove duplicate
+
+```{r}
+raw1$id[which(duplicated(raw1$id))]
+raw2$id[which(duplicated(raw2$id))]
+
+raw1<-raw1[-which(duplicated(raw1$id)),]
+#raw2<-raw2[-which(duplicated(raw2$id)),]
+
+raw1$id[which(duplicated(raw1$id))]
+raw2$id[which(duplicated(raw2$id))]
+```
+
+
+```{r}
+names(raw1)[colnames(raw1)=="id"] <- "subID"
+names(raw2)[colnames(raw2)=="id"] <- "subID"
+```
+
+```{r}
+changeQuant <- grep("SocialPos",colnames(raw2)):grep("IS",colnames(raw2))
+```
+
+
+```{r}
+selRaw1 <- raw1 %>% select(subID, Accurate:Worrier)
+traitLong1<-pivot_longer(selRaw1, cols=Accurate:Worrier, names_to = c("traits"), values_to = "selfRespT1", names_repair = "unique")
+traitLong1<-traitLong1[c("subID","traits","selfRespT1")]
+#traitLong1$time <- 1
+
+selRaw2 <- raw2 %>% select(subID, Accurate:Worrier)
+traitLong2<-pivot_longer(selRaw2, cols=Accurate:Worrier, names_to = c("traits"), values_to = "selfRespT2", names_repair = "unique")
+traitLong2<-traitLong2[c("subID","traits","selfRespT2")]
+#traitLong2$time <- 2
+
+fullLong <- merge(traitLong1, traitLong2, by = c("subID","traits") )
+
+change2 <- raw2 %>% select(subID, SocialPos:IS)
+
+fullLong <- merge(fullLong, change2, by = "subID")
+```
+
+# Fix trait labels and merge
+
+```{r}
+fullLong$traits <- gsub("\\.", "-",fullLong$traits )
+setdiff(unique(fullLong$traits),c(posTraits$trait,negTraits$trait) )
+setdiff(c(posTraits$trait,negTraits$trait), unique(fullLong$traits) )
+
+traits <- rbind(posTraits, negTraits)
+traits$Idx <- 1:296
+fullLong <- merge(fullLong, traits, by.x = "traits", by.y = "trait")
+```
+
+```{r}
+letters_only <- function(x) !grepl("[^A-Za-z]",x)
+numbers_only <- function(x) !grepl("\\D",x)
+apply(fullLong, 2, function(x) all(numbers_only(x)) )
+
+#fullLong <- fullLong %>% select(selfRespT1:IS) %>% as.numeric()
+
+fullLong[grep("selfRespT1",colnames(fullLong)):grep("IS",colnames(fullLong))] <- apply( fullLong[grep("selfRespT1",colnames(fullLong)):grep("IS",colnames(fullLong))], 2, as.numeric)
+
+```
+
+
+```{r}
+fullLong$selfRespT2<-as.numeric(fullLong$selfRespT2)
+fullLong$selfRespT1<-as.numeric(fullLong$selfRespT1)
+fullLong$diffScore <- fullLong$selfRespT2 - fullLong$selfRespT1
+fullLong$absDS <- abs(fullLong$diffScore)
+```
+
+```{r}
+fullLong$SocialPos<-as.numeric(fullLong$SocialPos)
+fullLong$WorkPos<-as.numeric(fullLong$WorkPos)
+fullLong$SchoolPos<-as.numeric(fullLong$SchoolPos)
+fullLong$meanPos <- rowMeans(cbind(fullLong$SocialPos, fullLong$WorkPos, fullLong$SchoolPos))
+```
+
+```{r}
+write.csv(fullLong, "/Volumes/Research Project/Trait_TestRetest/WeekTRT/output/longChange.csv", row.names = F)
+```
+
+# Trait-level ICCs
+
+```{r}
+traitssWideT1 <-pivot_wider(fullLong[c("subID","traits","selfRespT1")], names_from = subID, values_from = selfRespT1)
+traitssWideT2 <-pivot_wider(fullLong[c("subID","traits","selfRespT2")], names_from = subID, values_from = selfRespT2)
+ICCmat <- matrix(ncol=2,nrow=nrow(traits))
+for(i in 1:nrow(traitssWideT1)){
+  df <- rbind(traitssWideT1[i,2:ncol(traitssWideT1)],traitssWideT2[i,2:ncol(traitssWideT2)])
+  df<-t(df)
+  assign(paste0("ID",i), df)
+  ICCmat[i,] <- c(i, irrNA::iccNA(df[,1:2])$ICCs[3])
+}
+colnames(ICCmat) <- c("Idx","ICC")
+ICCmat <- as.data.frame(ICCmat)
+```
+
+```{r}
+ICCmat <- merge(ICCmat, traits, by = "Idx")
+```
+
+```{r}
+write.csv(ICCmat, "/Volumes/Research Project/Trait_TestRetest/WeekTRT/output/ICCdf.csv", row.names = F)
+```
+
+# Ind Diff Cleaning
+
+```{r}
+indDiff1 <- raw1 %>% select(subID,RSE1:MAIA.2_19)
+indDiff2 <- raw2 %>% select(subID,RSE1:MAIA.2_19)
+indDiff1$check4 <- NULL
+indDiff2$check4 <- NULL
+```
+
+## Need for Cognition
+
+## Time 1
+
+```{r}
+NFCrevcols = c("NFC.6_3", "NFC.6_4")
+indDiff1[ ,NFCrevcols] = 8 - indDiff1[ ,NFCrevcols]
+ind1 <- grep("NFC.6_1", colnames(indDiff1))
+ind1<-min(ind1)
+ind2<- grep("NFC.6_6", colnames(indDiff1))
+ind2<-max(ind2)
+# Compute scores for Need for Cog
+indDiff1$NFC = rowMeans(indDiff1[, ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff1[, ind1:ind2])
+```
+
+```{r}
+NFCrevcols = c("NFC.6_3", "NFC.6_4")
+indDiff2[ ,NFCrevcols] = 8 - indDiff2[ ,NFCrevcols]
+ind1 <- grep("NFC.6_1", colnames(indDiff2))
+ind1<-min(ind1)
+ind2<- grep("NFC.6_6", colnames(indDiff2))
+ind2<-max(ind2)
+# Compute scores for Need for Cog
+indDiff2$NFC = rowMeans(indDiff2[, ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff2[, ind1:ind2])
+```
+
+## Self-Esteem
+
+### Time 1
+
+```{r}
+# Reverse code Rosenberg Self-Esteem items
+SErevcols = c("RSE2", "RSE5", "RSE6", "RSE8", "RSE9")
+indDiff1[ ,SErevcols] = 5 - indDiff1[ ,SErevcols]
+ind1 <- grep("^RSE1$", colnames(indDiff1))
+ind1<-min(ind1)
+ind2<- grep("^RSE10$", colnames(indDiff1))
+ind2<-max(ind2)
+# Compute scores for Rosenberg Self-Esteem
+indDiff1$SE = rowMeans(indDiff1[, ind1:ind2], na.rm = TRUE)
+indDiff1$SE <- 5 - indDiff1$SE
+psych::omega(indDiff1[, ind1:ind2])
+```
+
+### Time 2
+
+```{r}
+# Reverse code Rosenberg Self-Esteem items
+SErevcols = c("RSE2", "RSE5", "RSE6", "RSE8", "RSE9")
+indDiff2[ ,SErevcols] = 5 - indDiff2[ ,SErevcols]
+ind1 <- grep("^RSE1$", colnames(indDiff2))
+ind1<-min(ind1)
+ind2<- grep("^RSE10$", colnames(indDiff2))
+ind2<-max(ind2)
+# Compute scores for Rosenberg Self-Esteem
+indDiff2$SE = rowMeans(indDiff2[, ind1:ind2], na.rm = TRUE)
+indDiff2$SE <- 5 - indDiff2$SE
+psych::omega(indDiff2[, ind1:ind2])
+```
+
+## Self-Concept Clarity
+
+### Time 1
+
+```{r}
+# Reverse code Self-Concept Clarity Scale items
+SCC_revcols = c("SCC1", "SCC2", "SCC3", "SCC4", "SCC5", "SCC7", 
+                 "SCC8", "SCC9", "SCC10", "SCC12")
+indDiff1[ ,SCC_revcols] = 6 - indDiff1[ ,SCC_revcols]
+ind1 <- grep("SCC1", colnames(indDiff1))
+ind1<-min(ind1)
+ind2<- grep("SCC12", colnames(indDiff1))
+ind2<-max(ind2)
+# Compute score for Self-Concept Clarity Scale items
+indDiff1$SCC = rowMeans(indDiff1[,ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff1[ind1:ind2])
+```
+
+### Time 2
+
+```{r}
+# Reverse code Self-Concept Clarity Scale items
+SCC_revcols = c("SCC1", "SCC2", "SCC3", "SCC4", "SCC5", "SCC7", 
+                 "SCC8", "SCC9", "SCC10", "SCC12")
+indDiff2[ ,SCC_revcols] = 6 - indDiff2[ ,SCC_revcols]
+ind1 <- grep("SCC1", colnames(indDiff2))
+ind1<-min(ind1)
+ind2<- grep("SCC12", colnames(indDiff2))
+ind2<-max(ind2)
+# Compute score for Self-Concept Clarity Scale items
+indDiff2$SCC = rowMeans(indDiff2[,ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff2[ind1:ind2])
+```
+## Satisfaction with Life
+
+### Time 1
+
+```{r}
+ind1 <- grep("SWLS_1", colnames(indDiff1))
+ind1<-min(ind1)
+ind2<- grep("SWLS_5", colnames(indDiff1))
+ind2<-max(ind2)
+# Compute score for Self-Concept Clarity Scale items
+indDiff1$SWLS = rowMeans(indDiff1[,ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff1[ind1:ind2])
+```
+
+### Time 2
+
+```{r}
+ind1 <- grep("SWLS_1", colnames(indDiff2))
+ind1<-min(ind1)
+ind2<- grep("SWLS_5", colnames(indDiff2))
+ind2<-max(ind2)
+# Compute score for Self-Concept Clarity Scale items
+indDiff2$SWLS = rowMeans(indDiff2[,ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff2[ind1:ind2])
+```
+## CESD
+
+### Time 1
+
+```{r}
+# Reverse code Self-Concept Clarity Scale items
+CESD_revcols = c("CESD4", "CESD8", "CESD12", "CESD16")
+indDiff1[ ,CESD_revcols] = 5 - indDiff1[ ,CESD_revcols]
+ind1 <- grep("CESD", colnames(indDiff1))
+ind1<-min(ind1)
+ind2<- grep("CESD", colnames(indDiff1))
+ind2<-max(ind2)
+# Compute score for Self-Concept Clarity Scale items
+indDiff1$CESD = rowMeans(indDiff1[,ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff1[ind1:ind2])
+```
+
+### Time 2
+
+```{r}
+# Reverse code Self-Concept Clarity Scale items
+CESD_revcols = c("CESD4", "CESD8", "CESD12", "CESD16")
+indDiff2[ ,CESD_revcols] = 5 - indDiff2[ ,CESD_revcols]
+ind1 <- grep("CESD", colnames(indDiff2))
+ind1<-min(ind1)
+ind2<- grep("CESD", colnames(indDiff2))
+ind2<-max(ind2)
+# Compute score for Self-Concept Clarity Scale items
+indDiff2$CESD = rowMeans(indDiff2[,ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff2[ind1:ind2])
+```
+
+## Dialectical Self-Views
+
+### Time 1
+
+```{r}
+# reverse score 1, 5, 6, 7, 9, 14
+columnNames <- colnames(indDiff1[grep("^DS",colnames(indDiff1))])
+DSrevcols <- columnNames[c(1,5,6,7,9,14)]
+#DSrevcols = c("DS_1", "DS_7", "DS_8", "DS_9", "DS_11","DS_17")
+indDiff1[ ,DSrevcols] = 8 - indDiff1[ ,DSrevcols]
+ind1 <- grep("DS_1", colnames(indDiff1))
+ind1<-min(ind1)
+ind2<- grep("DS_17", colnames(indDiff1))
+ind2<-max(ind2)
+# Compute scores for Need for Cog
+indDiff1$DS = rowMeans(indDiff1[, ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff1[ind1:ind2])
+```
+
+### Time 2
+
+```{r}
+# reverse score 1, 5, 6, 7, 9, 14
+columnNames <- colnames(indDiff2[grep("^DS",colnames(indDiff2))])
+DSrevcols <- columnNames[c(1,5,6,7,9,14)]
+#DSrevcols = c("DS_1", "DS_7", "DS_8", "DS_9", "DS_11","DS_17")
+indDiff2[ ,DSrevcols] = 8 - indDiff2[ ,DSrevcols]
+ind1 <- grep("DS_1", colnames(indDiff2))
+ind1<-min(ind1)
+ind2<- grep("DS_17", colnames(indDiff2))
+ind2<-max(ind2)
+# Compute scores for Need for Cog
+indDiff2$DS = rowMeans(indDiff2[, ind1:ind2], na.rm = TRUE)
+
+psych::omega(indDiff2[ind1:ind2])
+```
+
+
+## Interoceptive Awareness
+
+### Time 1
+
+```{r}
+MAIArevcols = c("MAIA.1_5", "MAIA.1_6", "MAIA.1_7", "MAIA.1_8", "MAIA.1_9", "MAIA.1_10", "MAIA.1_11", "MAIA.1_12", "MAIA.1_15")
+indDiff1[, MAIArevcols] = 7 - indDiff1[ ,MAIArevcols]
+ind1 <- grep("MAIA", colnames(indDiff1))
+ind1 <- min(ind1)
+ind2 <- grep("MAIA", colnames(indDiff1))
+ind2 <- max(ind2)
+indDiff1$MAIA.All <- rowMeans(indDiff1[, ind1:ind2], na.rm = TRUE)
+psych::omega(indDiff1[,ind1:ind2])
+```
+
+### Time 2
+
+```{r}
+MAIArevcols = c("MAIA.1_5", "MAIA.1_6", "MAIA.1_7", "MAIA.1_8", "MAIA.1_9", "MAIA.1_10", "MAIA.1_11", "MAIA.1_12", "MAIA.1_15")
+indDiff2[, MAIArevcols] = 7 - indDiff2[ ,MAIArevcols]
+ind1 <- grep("MAIA", colnames(indDiff2))
+ind1 <- min(ind1)
+ind2 <- grep("MAIA", colnames(indDiff2))
+ind2 <- max(ind2)
+indDiff2$MAIA.All <- rowMeans(indDiff2[, ind1:ind2], na.rm = TRUE)
+psych::omega(indDiff2[,ind1:ind2])
+```
+
+```{r}
+indsT2 <- indDiff2 %>% select(SE:MAIA.All) %>% rename_with(function(x) paste0(x,"_T2"))
+indsT1 <- indDiff1 %>% select(SE:MAIA.All) %>% rename_with(function(x) paste0(x,"_T1"))
+
+indsT1 <- cbind(subID = indDiff1$subID, indsT1)
+indsT2 <- cbind(subID = indDiff2$subID, indsT2)
+
+indDiffNames <- c("SE","SCC","SWLS","CESD","DS","MAIA.All")
+inds<-merge(indsT1,indsT2, by="subID",all.x=T,all.y=T)
+for(i in indDiffNames){
+  inds <- cbind(inds, rowMeans(inds[c(paste0(i,"_T1"),paste0(i,"_T2") )],na.rm=T) )
+  
+}
+colnames(inds)[ (ncol(inds)-(length(indDiffNames)-1) ) :ncol(inds)] <- paste0(indDiffNames,"_C")
+
+fullLong <- merge(fullLong, inds, by = "subID",all.x=T,all.y = T)
+```
+
+```{r}
+write.csv(fullLong, "/Volumes/Research Project/Trait_TestRetest/WeekTRT/output/longChangeInds.csv", row.names = F)
+```
+
+
+
+```{r}
+
+  # words <- raw2 %>% 
+  #   select(FiveWords_1:FiveWords_5) %>% 
+  #   mutate(across(FiveWords_1:FiveWords_5, ~ tolower(.x) ))
+
+words <- as.matrix(apply(raw2[paste0("FiveWords_",1:5)], c(1,2), tolower))
+colnames(words) <- c("w1","w2","w3","w4","w5")
+
+for(i in 1:5){
+  # sent <- raw2 %>% 
+  # select(paste0("FiveWords_",i)) %>%
+  # mutate(paste0("FiveWords_",i) = tolower(noquote(paste0("FiveWords_",i) ))) %>%
+  #raw2[paste0("FiveWords_",i)] %>%
+  # rename(word = paste0("FiveWords_",i))  %>%
+  # as_tibble() #%>%
+ #  inner_join(get_sentiments("bing"))
+  
+  w <- words %>% as_tibble() %>% select(paste0("w",i)) %>% rename(word = paste0("w",i)) %>% inner_join(get_sentiments("bing"))
+  colnames(w) <- c(paste0("FiveWords_",i),paste0("sentiment",i))
+  
+  assign(paste0("w",i,"sent"), w)
+  
+  raw2<-left_join(raw2, w)
+  raw2<-raw2[!duplicated(raw2),]
+  
+}
+
+#as.matrix(apply(raw2[paste0("sentiment",1:5)], c(1,2),   ))
+```
+
+
+
+
+
+
+
+
+

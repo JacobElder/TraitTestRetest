@@ -1,0 +1,336 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(ggeffects)
+library(lmerTest)
+```
+
+```{r}
+fullLong <- read.csv("/Volumes/Research Project/Trait_TestRetest/WeekTRT/output/longChangeInds.csv", header = T)
+ICCmat <- read.csv("/Volumes/Research Project/Trait_TestRetest/WeekTRT/output/ICCdf.csv")
+```
+
+
+```{r}
+m <- lm(ICC ~ inDegree, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ outDegree, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ outDegree + inDegree, data = ICCmat)
+summary(m)
+
+m <- lm(scale(ICC) ~ scale(outDegree) + scale(inDegree) + valence, data = ICCmat)
+summary(m)
+
+check_model(m)
+# 
+# bptest(m)
+# coeftest(m, vcov. = vcovHC)
+
+m <- lm(ICC ~ outDegree * inDegree, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ outDegree + inDegree*valence, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ outDegree*valence + inDegree, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ outDegree*valence + inDegree*valence, data = ICCmat)
+summary(m)
+```
+
+```{r}
+m <- lm(ICC ~ eigen, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ pageRank, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ transitivity, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ efficiency, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ between, data = ICCmat)
+summary(m)
+
+m <- lm(ICC ~ close, data = ICCmat)
+summary(m)
+```
+
+```{r}
+m<-lmer(scale(selfRespT2)~ scale(outDegree)*valence + scale(inDegree) + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+ggpredict(m, c("outDegree","valence")) %>% plot()
+```
+
+```{r}
+m<-lmer(scale(absDS)~ scale(outDegree) + valence + scale(inDegree) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+r2beta(m)
+ggpredict(m, c("outDegree","valence")) %>% plot()
+```
+
+
+```{r}
+m<-lmer(scale(diffScore)~ outDegree*valence + inDegree +  ( valence |subID), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(diffScore)~ valence*Significant +  ( valence |subID), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(diffScore)~ valence*DP +  ( valence |subID), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(diffScore)~ valence*SR +  ( valence |subID), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(diffScore)~ valence*IS +  ( valence |subID), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(diffScore)~ valence*WorkPos +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+```
+
+# Reflection
+
+```{r}
+m<-lmer(scale(selfRespT2) ~ scale(Cont) + scale(selfRespT1) + ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+m<-lmer(scale(selfRespT2) ~ scale(SR) + scale(selfRespT1) +  ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+m<-lmer(scale(selfRespT2) ~ scale(IS) + scale(selfRespT1) +  ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+m<-lmer(scale(selfRespT2) ~ scale(DP) + scale(selfRespT1) +  ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+m<-lmer(scale(selfRespT2) ~ scale(Impact) + scale(selfRespT1) +  ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+m<-lmer(scale(selfRespT2) ~ scale(Significant) + scale(selfRespT1) +  ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+m<-lmer(scale(selfRespT2) ~ scale(AllPos) + scale(selfRespT1) +  ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+m<-lmer(scale(selfRespT2) ~ scale(SchoolPos) + scale(selfRespT1) +  ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+m<-lmer(scale(selfRespT2) ~ scale(WorkPos) + scale(selfRespT1) +  ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+```
+
+# Reflection and Valenced and Outdegree
+
+```{r}
+m<-lmer(scale(selfRespT2) ~ scale(Cont)*scale(outDegree)*valence + scale(selfRespT1) + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(selfRespT2) ~ scale(SR)*scale(outDegree)*valence + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(selfRespT2) ~ scale(IS)*scale(outDegree)*valence  + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(selfRespT2) ~ scale(DP)*scale(outDegree)*valence  + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(selfRespT2) ~ scale(Impact)*scale(outDegree)*valence  + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("outDegree","valence", "Impact")) %>% plot()
+
+m<-lmer(scale(selfRespT2) ~ scale(Significant)*scale(outDegree)*valence  + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(scale(selfRespT2) ~ scale(AllPos)*scale(outDegree)*valence  + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("AllPos","valence")) %>% plot()
+
+m<-lmer(scale(selfRespT2) ~ scale(SocialPos)*scale(outDegree)*valence  + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("SocialPos","valence")) %>% plot()
+
+m<-lmer(scale(selfRespT2) ~ scale(SchoolPos)*scale(outDegree)*valence  + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("outDegree","valence", "SchoolPos")) %>% plot()
+
+m<-lmer(scale(selfRespT2) ~ scale(WorkPos)*scale(outDegree)*valence  + scale(selfRespT1) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("outDegree","valence", "WorkPos")) %>% plot()
+```
+
+```{r}
+m<-lmer(absDS ~ AllPos*scale(outDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(absDS ~ AllPos*scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(absDS ~ scale(Significant)*scale(outDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(absDS ~ scale(Significant)*scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+```
+
+# 
+
+```{r}
+m<-lmer(absDS ~ scale(DP)*scale(outDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("outDegree","DP")) %>% plot()
+
+m<-lmer(absDS ~ scale(DP)*scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("inDegree","DP")) %>% plot()
+```
+
+
+```{r}
+m<-lmer(absDS ~ SocialPos*scale(outDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(absDS ~ SocialPos*scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+```
+
+
+```{r}
+m<-lmer(absDS ~ WorkPos*scale(outDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(absDS ~ WorkPos*scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+```
+
+
+```{r}
+m<-lmer(absDS ~ SchoolPos*scale(outDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer(absDS ~ SchoolPos*scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+```
+
+```{r}
+m<-lmer(absDS ~ Cont*scale(outDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("outDegree","Cont")) %>% plot()
+
+m<-lmer(absDS ~ Cont*scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("inDegree","Cont")) %>% plot()
+```
+
+```{r}
+m<-lmer(absDS ~ SR*scale(outDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("outDegree","SR")) %>% plot()
+
+m<-lmer(absDS ~ SR*scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("inDegree","SR")) %>% plot()
+```
+```{r}
+m<-lmer(absDS ~ IS*scale(outDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("outDegree","IS")) %>% plot()
+
+m<-lmer(absDS ~ IS*scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("inDegree","IS")) %>% plot()
+```
+# Self-Esteem and Depression with Outdegree in Predicting Absolute Change
+
+People higher in depressive symptoms/lower in self-esteem change more regardless of outdegree
+
+```{r}
+m<-lmer(scale(absDS)~ scale(CESD_C)*scale(outDegree) +  ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("CESD_C","outDegree")) %>% plot()
+
+m<-lmer(scale(absDS)~ scale(SE_C)*scale(outDegree) +  ( scale(outDegree) |subID), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("SE_C","outDegree")) %>% plot()
+
+m<-lmer(scale(absDS)~ scale(SCC_C)*scale(outDegree) +  ( scale(outDegree) |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("SCC_C","outDegree")) %>% plot()
+
+m<-lmer(scale(absDS)~ scale(DS_C)*scale(outDegree) +  ( scale(outDegree) |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("DS_C","outDegree")) %>% plot()
+
+m<-lmer(scale(absDS)~ scale(MAIA.All_C)*scale(outDegree) +  ( scale(outDegree) |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("MAIA.All_C","outDegree")) %>% plot()
+
+m<-lmer(scale(absDS)~ scale(SWLS_C)*scale(outDegree) +  ( scale(outDegree) |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("MAIA.All_C","outDegree")) %>% plot()
+```
+
+```{r}
+
+```
+
+
+
+
+
+
