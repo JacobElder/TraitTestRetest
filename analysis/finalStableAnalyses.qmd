@@ -1,0 +1,248 @@
+---
+title: "finalAnalyses"
+format: html
+editor: visual
+toc: true
+---
+
+# Set-Up
+
+```{r, results='hide',message=FALSE,warning=FALSE}
+library(groundhog)
+pkgs <-  c("lmerTest", "ggeffects","r2glmm", "tidyverse","here", "sjPlot", "ggpubr", "wesanderson", "effectsize")
+groundhog.day <- '2022-07-25'
+groundhog.library(pkgs, groundhog.day)
+here::i_am("analysis/finalStableAnalyses.qmd")
+plotDir <- "/Volumes/Research Project/Trait_TestRetest/WeekTRT/plots/"
+```
+
+# Import Data
+
+```{r, results='hide',message=FALSE,warning=FALSE}
+fullLong <- as.data.frame( arrow::read_parquet(here("data/longChangeInds.parquet")) ) 
+ICCmat <- as.data.frame( arrow::read_parquet(here("data/ICCdf.parquet")) )
+```
+
+# Scaling
+
+```{r, results='hide',message=FALSE,warning=FALSE}
+fullLong$absDS.Z <- scale(fullLong$absDS)
+fullLong$selfRespT1.Z <- scale(fullLong$selfRespT1)
+fullLong$selfRespT2.Z <- scale(fullLong$selfRespT2)
+fullLong$outDegree.Z <- scale(fullLong$outDegree)
+fullLong$inDegree.Z <- scale(fullLong$inDegree)
+fullLong$SE_C.Z <- scale(fullLong$SE_C)
+fullLong$SCC_C.Z <- scale(fullLong$SCC_C)
+fullLong$DS_C.Z <- scale(fullLong$DS_C)
+fullLong$CESD_C.Z <- scale(fullLong$CESD_C)
+fullLong$SWLS_C.Z <- scale(fullLong$SWLS_C)
+fullLong$MAIA.All_C.Z <- scale(fullLong$MAIA.All_C)
+```
+
+# **More Dependent Self-Beliefs Are Less Reliable**
+
+```{r}
+m <- lm(scale(ICC) ~ scale(outDegree) + scale(inDegree) + valence, data = ICCmat)
+eta_squared(m)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Reliability", show.df=T)
+```
+
+# **Self-Beliefs with More Implications Change Less**
+
+```{r}
+m<-lmer(absDS.Z ~ outDegree.Z + valence + inDegree.Z +  ( valence + outDegree.Z + inDegree.Z |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+r2beta(m)
+```
+
+```{r}
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Confidence", df.method = "satterthwaite",show.df=T)
+```
+
+# **Individual Differences in Self-Concept Stability as a Function of Outdegree**
+
+## Self-Concept Clarity
+
+```{r}
+m<-lmer( absDS.Z ~ SCC_C.Z*outDegree.Z + ( outDegree.Z | subID ) + ( SCC_C.Z | traits), data=fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+rb <- r2beta(m)
+data.frame(rb$Effect,rb$Rsq)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Evaluation", df.method = "satterthwaite",show.df=T)
+```
+
+### Plot
+
+```{r}
+m<-lmer( absDS ~ SCC_C*outDegree + ( outDegree | subID ) + ( SCC_C | traits), data= fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+
+p <- ggpredict(m, c("SCC_C","outDegree"))
+SCC.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=group, color=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, fill=group), alpha=0.15) + scale_linetype_discrete(labels = c("Low Outdegree","Medium Outdegree","High Outdegree")) + scale_color_manual(labels = c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + scale_fill_manual( 
+                      labels=c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + theme(
+    legend.position = c(.2, .7),
+    legend.justification = c("left", "bottom"),
+    legend.box.just = "left",
+    legend.margin = margin(6, 6, 6, 6)
+    ) + theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("Self-Concept Clarity") + ylab("Absolute Change")
+SCC.outdeg.Stable.Plot
+```
+
+## Self-Esteem
+
+```{r}
+m<-lmer( absDS.Z ~ SE_C.Z*outDegree.Z + ( outDegree.Z | subID ) + ( SE_C.Z | traits), data=fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+rb <- r2beta(m)
+data.frame(rb$Effect,rb$Rsq)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Evaluation", df.method = "satterthwaite",show.df=T)
+```
+
+### Plot
+
+```{r}
+m<-lmer( absDS ~ SE_C*outDegree + ( outDegree | subID ) + ( SE_C | traits), data= fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+
+p <- ggpredict(m, c("SE_C","outDegree"))
+SE.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=group, color=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, fill=group), alpha=0.15) + scale_linetype_discrete(labels = c("Low Outdegree","Medium Outdegree","High Outdegree")) + scale_color_manual(labels = c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + scale_fill_manual( 
+                      labels=c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + theme(
+    legend.position = c(.2, .10),
+    legend.justification = c("left", "bottom"),
+    legend.box.just = "left",
+    legend.margin = margin(6, 6, 6, 6)
+    ) + theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("Self-Esteem") + ylab("Absolute Change")
+SE.outdeg.Stable.Plot
+```
+
+## Dialectical Self-Views
+
+```{r}
+m<-lmer( absDS.Z ~ DS_C.Z*outDegree.Z + ( outDegree.Z | subID ) + ( DS_C.Z | traits), data=fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+rb <- r2beta(m)
+data.frame(rb$Effect,rb$Rsq)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Evaluation", df.method = "satterthwaite",show.df=T)
+```
+
+### Plot
+
+```{r}
+m<-lmer( absDS ~ DS_C*outDegree + ( outDegree | subID ) + ( DS_C | traits), data= fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+
+p <- ggpredict(m, c("DS_C","outDegree"))
+DS.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=group, color=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, fill=group), alpha=0.15) + scale_linetype_discrete(labels = c("Low Outdegree","Medium Outdegree","High Outdegree")) + scale_color_manual(labels = c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + scale_fill_manual( 
+                      labels=c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + theme(
+    legend.position = c(.5, .70),
+    legend.justification = c("left", "bottom"),
+    legend.box.just = "left",
+    legend.margin = margin(6, 6, 6, 6)
+    ) + theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("Dialectical Self-Views") + ylab("Absolute Change")
+DS.outdeg.Stable.Plot
+```
+
+## Depressive Symptoms
+
+```{r}
+m<-lmer( absDS.Z ~ CESD_C.Z*outDegree.Z + ( outDegree.Z | subID ) + ( SWLS_C.Z | traits), data=fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+rb <- r2beta(m)
+data.frame(rb$Effect,rb$Rsq)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Evaluation", df.method = "satterthwaite",show.df=T)
+```
+
+### Plot
+
+```{r}
+m<-lmer( absDS ~ CESD_C*outDegree + ( outDegree | subID ) + ( CESD_C | traits), data= fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+
+p <- ggpredict(m, c("CESD_C","outDegree"))
+CESD.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=group, color=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, fill=group), alpha=0.15) + scale_linetype_discrete(labels = c("Low Outdegree","Medium Outdegree","High Outdegree")) + scale_color_manual(labels = c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + scale_fill_manual( 
+                      labels=c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + theme(
+    legend.position = c(.55, .10),
+    legend.justification = c("left", "bottom"),
+    legend.box.just = "left",
+    legend.margin = margin(6, 6, 6, 6)
+    ) + theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("Depressive Symptoms") + ylab("Absolute Change")
+CESD.outdeg.Stable.Plot
+```
+
+## Satisfaction with Life
+
+```{r}
+m<-lmer( absDS.Z ~ SWLS_C.Z*outDegree.Z + ( outDegree.Z | subID ) + ( SWLS_C.Z | traits), data=fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+rb <- r2beta(m)
+data.frame(rb$Effect,rb$Rsq)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Evaluation", df.method = "satterthwaite",show.df=T)
+```
+
+### Plot
+
+```{r}
+m<-lmer( absDS ~ SWLS_C*outDegree + ( outDegree | subID ) + ( SWLS_C | traits), data= fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+
+p <- ggpredict(m, c("SWLS_C","outDegree"))
+SWLS.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=group, color=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, fill=group), alpha=0.15) + scale_linetype_discrete(labels = c("Low Outdegree","Medium Outdegree","High Outdegree")) + scale_color_manual(labels = c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + scale_fill_manual( 
+                      labels=c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + theme(
+    legend.position = c(.2, .10),
+    legend.justification = c("left", "bottom"),
+    legend.box.just = "left",
+    legend.margin = margin(6, 6, 6, 6)
+    ) + theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("Satisfaction with Life") + ylab("Absolute Change")
+SWLS.outdeg.Stable.Plot
+```
+
+## Interoceptive Awareness
+
+```{r}
+m<-lmer( absDS.Z ~ MAIA.All_C.Z*outDegree.Z + ( outDegree.Z | subID ) + ( SWLS_C.Z | traits), data=fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+rb <- r2beta(m)
+data.frame(rb$Effect,rb$Rsq)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Evaluation", df.method = "satterthwaite",show.df=T)
+```
+
+### Plot
+
+```{r}
+m<-lmer( absDS ~ MAIA.All_C*outDegree + ( outDegree | subID ) + ( MAIA.All_C | traits), data= fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+
+p <- ggpredict(m, c("MAIA.All_C","outDegree"))
+MAIA.All.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=group, color=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, fill=group), alpha=0.15) + scale_linetype_discrete(labels = c("Low Outdegree","Medium Outdegree","High Outdegree")) + scale_color_manual(labels = c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + scale_fill_manual( 
+                      labels=c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + theme(
+    legend.position = c(.2, .07),
+    legend.justification = c("left", "bottom"),
+    legend.box.just = "left",
+    legend.margin = margin(6, 6, 6, 6)
+    ) + theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("Interoceptive Awareness") + ylab("Absolute Change")
+MAIA.All.outdeg.Stable.Plot
+```
+
+```{r}
+ggarrange(SE.outdeg.Stable.Plot, SCC.outdeg.Stable.Plot, DS.outdeg.Stable.Plot, CESD.outdeg.Stable.Plot, nrow=2, ncol=2, common.legend = T)
+ggsave(paste0(plotDir,"IndDiff.outdegStable",".png"), width = 13, height = 10.5, units = "in")
+ggsave(paste0(plotDir,"IndDiff.outdegStable",".tiff"), width = 13, height = 10.5, units = "in")
+```

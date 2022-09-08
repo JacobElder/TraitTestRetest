@@ -50,6 +50,34 @@ raw1 <- raw1 %>% filter(evalRepeat==0)
 raw2 <- raw2 %>% filter(evalRepeat==0)
 ```
 
+```{r}
+demos <- raw1 %>% 
+  select(D1:D7, id) %>%
+  full_join(raw2, by = "id")
+
+psych::describe(as.numeric(demos$D1)) # Age
+prop.table(table(demos$D2))
+prop.table(table(demos$D3))
+unique(demos$D3)
+demos <- demos %>%
+  mutate(D3 = replace(D3, str_detect(demos$D3, ","), 8)
+         )
+demos$D3 <- case_when(
+  demos$D3 == 1 ~ "Black",
+  demos$D3 == 2 ~ "Asian",
+  demos$D3 == 3 ~ "White",
+  demos$D3 == 4 ~ "Hispanic/Latino",
+  demos$D3 == 5 ~ "Pacific Islander",
+  demos$D3 == 6 ~ "Native American",
+  demos$D3 == 7 ~ "Indian",
+  demos$D3 == 8 ~ "Mixed",
+  demos$D3 == 9 ~ "Other",
+)
+
+
+prop.table(table(demos$D3))
+sum (prop.table(table(demos$D3))[c(4,5,6,7)] )
+```
 
 # Detect and remove duplicate
 
@@ -72,6 +100,24 @@ names(raw2)[colnames(raw2)=="id"] <- "subID"
 
 ```{r}
 changeQuant <- grep("SocialPos",colnames(raw2)):grep("IS",colnames(raw2))
+```
+
+# Date range
+
+```{r}
+raw1$StartDate<-gsub(" .*", "", raw1$StartDate)
+raw2$StartDate<-gsub(" .*", "", raw2$StartDate)
+
+raw1$StartDate <- lubridate::mdy(raw1$StartDate)
+raw2$StartDate <- lubridate::mdy(raw2$StartDate)
+
+times1 <- raw1 %>% select(subID, StartDate)
+times2 <- raw2 %>% select(subID, StartDate)
+
+timeFull <- times1 %>% full_join(time2, by="subID")
+
+mean(difftime(timeFull$StartDate.y,timeFull$StartDate.x),na.rm=T)
+sd(difftime(timeFull$StartDate.y,timeFull$StartDate.x),na.rm=T)
 ```
 
 
@@ -133,6 +179,7 @@ fullLong$meanPos <- rowMeans(cbind(fullLong$SocialPos, fullLong$WorkPos, fullLon
 
 ```{r}
 write.csv(fullLong, "/Volumes/Research Project/Trait_TestRetest/WeekTRT/output/longChange.csv", row.names = F)
+arrow::write_parquet(fullLong, "~/Documents/GitHub/TraitTestRetest/data/longChange.parquet")
 ```
 
 # Trait-level ICCs
@@ -157,6 +204,7 @@ ICCmat <- merge(ICCmat, traits, by = "Idx")
 
 ```{r}
 write.csv(ICCmat, "/Volumes/Research Project/Trait_TestRetest/WeekTRT/output/ICCdf.csv", row.names = F)
+arrow::write_parquet(ICCmat, "~/Documents/GitHub/TraitTestRetest/data/ICCdf.parquet")
 ```
 
 # Ind Diff Cleaning
@@ -415,39 +463,27 @@ fullLong <- merge(fullLong, inds, by = "subID",all.x=T,all.y = T)
 
 ```{r}
 write.csv(fullLong, "/Volumes/Research Project/Trait_TestRetest/WeekTRT/output/longChangeInds.csv", row.names = F)
+arrow::write_parquet(fullLong, "~/Documents/GitHub/TraitTestRetest/data/longChangeInds.parquet")
 ```
 
 
 
 ```{r}
-
-  # words <- raw2 %>% 
-  #   select(FiveWords_1:FiveWords_5) %>% 
-  #   mutate(across(FiveWords_1:FiveWords_5, ~ tolower(.x) ))
-
-words <- as.matrix(apply(raw2[paste0("FiveWords_",1:5)], c(1,2), tolower))
-colnames(words) <- c("w1","w2","w3","w4","w5")
-
-for(i in 1:5){
-  # sent <- raw2 %>% 
-  # select(paste0("FiveWords_",i)) %>%
-  # mutate(paste0("FiveWords_",i) = tolower(noquote(paste0("FiveWords_",i) ))) %>%
-  #raw2[paste0("FiveWords_",i)] %>%
-  # rename(word = paste0("FiveWords_",i))  %>%
-  # as_tibble() #%>%
- #  inner_join(get_sentiments("bing"))
-  
-  w <- words %>% as_tibble() %>% select(paste0("w",i)) %>% rename(word = paste0("w",i)) %>% inner_join(get_sentiments("bing"))
-  colnames(w) <- c(paste0("FiveWords_",i),paste0("sentiment",i))
-  
-  assign(paste0("w",i,"sent"), w)
-  
-  raw2<-left_join(raw2, w)
-  raw2<-raw2[!duplicated(raw2),]
-  
-}
-
-#as.matrix(apply(raw2[paste0("sentiment",1:5)], c(1,2),   ))
+# 
+# words <- as.matrix(apply(raw2[paste0("FiveWords_",1:5)], c(1,2), tolower))
+# colnames(words) <- c("w1","w2","w3","w4","w5")
+# 
+# for(i in 1:5){
+#   
+#   w <- words %>% as_tibble() %>% select(paste0("w",i)) %>% rename(word = paste0("w",i)) %>% inner_join(get_sentiments("bing"))
+#   colnames(w) <- c(paste0("FiveWords_",i),paste0("sentiment",i))
+#   
+#   assign(paste0("w",i,"sent"), w)
+#   
+#   raw2<-left_join(raw2, w)
+#   raw2<-raw2[!duplicated(raw2),]
+#   
+# }
 ```
 
 
