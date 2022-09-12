@@ -42,7 +42,7 @@ fullLong$MAIA.All_C.Z <- scale(fullLong$MAIA.All_C)
 # **More Dependent Self-Beliefs Are Less Reliable**
 
 ```{r}
-m <- lm(scale(ICC) ~ scale(outDegree) + scale(inDegree) + valence, data = ICCmat)
+m <- lm(scale(ICCr2z) ~ scale(outDegree) + scale(inDegree) + valence, data = ICCmat)
 eta_squared(m)
 tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Reliability", show.df=T)
 ```
@@ -57,6 +57,10 @@ r2beta(m)
 
 ```{r}
 tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Confidence", df.method = "satterthwaite",show.df=T)
+```
+
+```{r}
+cor(ICCmat[c("ICCr2z","absDS","cor","outDegree","inDegree")])
 ```
 
 # **Individual Differences in Self-Concept Stability as a Function of Outdegree**
@@ -89,6 +93,8 @@ SCC.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=
 panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   xlab("Self-Concept Clarity") + ylab("Absolute Change")
 SCC.outdeg.Stable.Plot
+
+ggpredict(m, c("SCC_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw Data",x="Self-Concept Clarity",y="Change")
 ```
 
 ## Self-Esteem
@@ -119,6 +125,8 @@ SE.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=g
 panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   xlab("Self-Esteem") + ylab("Absolute Change")
 SE.outdeg.Stable.Plot
+
+ggpredict(m, c("SE_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw Data",x="Self-Esteem",y="Change")
 ```
 
 ## Dialectical Self-Views
@@ -149,6 +157,8 @@ DS.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=g
 panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   xlab("Dialectical Self-Views") + ylab("Absolute Change")
 DS.outdeg.Stable.Plot
+
+ggpredict(m, c("DS_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw Data",x="Dialectical Self-Views",y="Change")
 ```
 
 ## Depressive Symptoms
@@ -179,6 +189,8 @@ CESD.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype
 panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   xlab("Depressive Symptoms") + ylab("Absolute Change")
 CESD.outdeg.Stable.Plot
+
+ggpredict(m, c("CESD_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw Data",x="Depressive Symptoms",y="Change")
 ```
 
 ## Satisfaction with Life
@@ -209,6 +221,8 @@ SWLS.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype
 panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   xlab("Satisfaction with Life") + ylab("Absolute Change")
 SWLS.outdeg.Stable.Plot
+
+ggpredict(m, c("SWLS_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw Data",x="Satisfaction with Life",y="Change")
 ```
 
 ## Interoceptive Awareness
@@ -239,6 +253,8 @@ MAIA.All.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(line
 panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   xlab("Interoceptive Awareness") + ylab("Absolute Change")
 MAIA.All.outdeg.Stable.Plot
+
+ggpredict(m, c("MAIA.All_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw Data",x="Interoceptive Awareness",y="Change")
 ```
 
 ```{r}

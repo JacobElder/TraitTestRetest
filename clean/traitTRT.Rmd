@@ -114,7 +114,7 @@ raw2$StartDate <- lubridate::mdy(raw2$StartDate)
 times1 <- raw1 %>% select(subID, StartDate)
 times2 <- raw2 %>% select(subID, StartDate)
 
-timeFull <- times1 %>% full_join(time2, by="subID")
+timeFull <- times1 %>% full_join(times2, by="subID")
 
 mean(difftime(timeFull$StartDate.y,timeFull$StartDate.x),na.rm=T)
 sd(difftime(timeFull$StartDate.y,timeFull$StartDate.x),na.rm=T)
@@ -187,15 +187,20 @@ arrow::write_parquet(fullLong, "~/Documents/GitHub/TraitTestRetest/data/longChan
 ```{r}
 traitssWideT1 <-pivot_wider(fullLong[c("subID","traits","selfRespT1")], names_from = subID, values_from = selfRespT1)
 traitssWideT2 <-pivot_wider(fullLong[c("subID","traits","selfRespT2")], names_from = subID, values_from = selfRespT2)
-ICCmat <- matrix(ncol=2,nrow=nrow(traits))
+ICCmat <- matrix(ncol=6,nrow=nrow(traits))
 for(i in 1:nrow(traitssWideT1)){
   df <- rbind(traitssWideT1[i,2:ncol(traitssWideT1)],traitssWideT2[i,2:ncol(traitssWideT2)])
   df<-t(df)
   assign(paste0("ID",i), df)
-  ICCmat[i,] <- c(i, irrNA::iccNA(df[,1:2])$ICCs[3])
+  ICCmat[i,] <- c(i, irrNA::iccNA(df[,1:2])$ICCs[3], 
+                  var(apply(df,1,mean)), 
+                  var(apply(df,2,mean)),
+                  psych::fisherz(cor(df,use="pairwise.complete.obs")[1,2]),
+                  mean(abs(df[,1]-df[2,]),na.rm=T))
 }
-colnames(ICCmat) <- c("Idx","ICC")
+colnames(ICCmat) <- c("Idx","ICC","btVar","wtVar","cor","absDS")
 ICCmat <- as.data.frame(ICCmat)
+ICCmat$ICCr2z <- psych::fisherz(ICCmat$ICC)
 ```
 
 ```{r}
