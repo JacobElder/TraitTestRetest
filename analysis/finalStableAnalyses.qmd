@@ -27,6 +27,7 @@ ICCmat <- as.data.frame( arrow::read_parquet(here("data/ICCdf.parquet")) )
 
 ```{r, results='hide',message=FALSE,warning=FALSE}
 fullLong$absDS.Z <- scale(fullLong$absDS)
+fullLong$diffScore.Z <- scale(fullLong$diffScore)
 fullLong$selfRespT1.Z <- scale(fullLong$selfRespT1)
 fullLong$selfRespT2.Z <- scale(fullLong$selfRespT2)
 fullLong$outDegree.Z <- scale(fullLong$outDegree)
@@ -262,3 +263,5 @@ ggarrange(SE.outdeg.Stable.Plot, SCC.outdeg.Stable.Plot, DS.outdeg.Stable.Plot, 
 ggsave(paste0(plotDir,"IndDiff.outdegStable",".png"), width = 13, height = 10.5, units = "in")
 ggsave(paste0(plotDir,"IndDiff.outdegStable",".tiff"), width = 13, height = 10.5, units = "in")
 ```
+
+# 
