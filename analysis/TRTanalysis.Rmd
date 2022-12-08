@@ -82,6 +82,14 @@ r2beta(m)
 ggpredict(m, c("outDegree","valence")) %>% plot()
 ```
 
+```{r}
+m<-lmer(scale(absDS)~ scale(outDegree) + valence + scale(inDegree) + scale(interpersonal) + scale(observability) + scale(category) + scale(prevalence) +  ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+r2beta(m)
+ggpredict(m, c("outDegree","valence")) %>% plot()
+```
+
 
 ```{r}
 m<-lmer(scale(diffScore)~ outDegree*valence + inDegree +  ( valence |subID), data = fullLong, control=lmerControl(optimizer="bobyqa",

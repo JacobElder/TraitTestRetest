@@ -32,6 +32,11 @@ fullLong$selfRespT1.Z <- scale(fullLong$selfRespT1)
 fullLong$selfRespT2.Z <- scale(fullLong$selfRespT2)
 fullLong$outDegree.Z <- scale(fullLong$outDegree)
 fullLong$inDegree.Z <- scale(fullLong$inDegree)
+fullLong$interpersonal.Z <- scale(fullLong$interpersonal)
+fullLong$category.Z <- scale(fullLong$category)
+fullLong$desirability.Z <- scale(fullLong$desirability)
+fullLong$prevalence.Z <- scale(fullLong$prevalence)
+fullLong$observability.Z <- scale(fullLong$observability)
 fullLong$SE_C.Z <- scale(fullLong$SE_C)
 fullLong$SCC_C.Z <- scale(fullLong$SCC_C)
 fullLong$DS_C.Z <- scale(fullLong$DS_C)
@@ -59,6 +64,19 @@ r2beta(m)
 ```{r}
 tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Confidence", df.method = "satterthwaite",show.df=T)
 ```
+
+# **Self-Beliefs with More Implications Change Less (with covariates)**
+
+```{r}
+m<-lmer(absDS.Z ~ outDegree.Z + valence + inDegree.Z + interpersonal.Z + category.Z + observability.Z + prevalence.Z +  ( valence + outDegree.Z + inDegree.Z |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+```
+
+```{r}
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Confidence", df.method = "satterthwaite",show.df=T)
+```
+
+# Correlations with ICC
 
 ```{r}
 cor(ICCmat[c("ICCr2z","absDS","cor","outDegree","inDegree")])
@@ -259,9 +277,9 @@ ggpredict(m, c("MAIA.All_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw
 ```
 
 ```{r}
-ggarrange(SE.outdeg.Stable.Plot, SCC.outdeg.Stable.Plot, DS.outdeg.Stable.Plot, CESD.outdeg.Stable.Plot, nrow=2, ncol=2, common.legend = T)
-ggsave(paste0(plotDir,"IndDiff.outdegStable",".png"), width = 13, height = 10.5, units = "in")
-ggsave(paste0(plotDir,"IndDiff.outdegStable",".tiff"), width = 13, height = 10.5, units = "in")
+ggarrange(SE.outdeg.Stable.Plot, SCC.outdeg.Stable.Plot, CESD.outdeg.Stable.Plot, nrow=1, ncol=3, common.legend = T)
+ggsave(paste0(plotDir,"IndDiff.outdegStable",".png"), width = 13, height = 7.5, units = "in")
+ggsave(paste0(plotDir,"IndDiff.outdegStable",".tiff"), width = 13, height = 7.5, units = "in")
 ```
 
 # 
