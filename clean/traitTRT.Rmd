@@ -185,9 +185,16 @@ arrow::write_parquet(fullLong, "~/Documents/GitHub/TraitTestRetest/data/longChan
 # Trait-level ICCs
 
 ```{r}
+std.error <- function(x) sd(x,na.rm=T)/sqrt(length(x))
+d2 <- function(x1,x2) sum(x1-x2)^2
+df2. <- function(x1,x2) d2(x1,x2) - 296* mean((x1-x2),na.rm=T)
+d2.. <- function(x1,x2) d2.
+
 traitssWideT1 <-pivot_wider(fullLong[c("subID","traits","selfRespT1")], names_from = subID, values_from = selfRespT1)
 traitssWideT2 <-pivot_wider(fullLong[c("subID","traits","selfRespT2")], names_from = subID, values_from = selfRespT2)
-ICCmat <- matrix(ncol=6,nrow=nrow(traits))
+x <- c("Idx","ICC.trait","btVar.trait","wtVar.trait","RO_Stab.trait","aML_Stab.trait","ML_Stab.trait","raw_Stab.trait","RC.trait")
+ICCmat <- matrix(ncol=length(x),nrow=nrow(traits))
+colnames(ICCmat) <- x
 for(i in 1:nrow(traitssWideT1)){
   df <- rbind(traitssWideT1[i,2:ncol(traitssWideT1)],traitssWideT2[i,2:ncol(traitssWideT2)])
   df<-t(df)
@@ -196,12 +203,45 @@ for(i in 1:nrow(traitssWideT1)){
                   var(apply(df,1,mean)), 
                   var(apply(df,2,mean)),
                   psych::fisherz(cor(df,use="pairwise.complete.obs")[1,2]),
-                  mean(abs(df[,1]-df[2,]),na.rm=T))
+                  mean(abs(df[,1]-df[,2]),na.rm=T),
+                  mean((df[,1]-df[,2]),na.rm=T),
+                  mean((df[,1]-df[,2])/df[,1], na.rm=T),
+                  mean((df[,1]-df[,2])/std.error(df[,1]-df[,2]), na.rm=T)
+                  )
 }
-colnames(ICCmat) <- c("Idx","ICC","btVar","wtVar","cor","absDS")
+
 ICCmat <- as.data.frame(ICCmat)
 ICCmat$ICCr2z <- psych::fisherz(ICCmat$ICC)
 ```
+
+# Subject-Level ICCs
+
+```{r}
+subsWideT1 <-pivot_wider(fullLong[c("subID","traits","selfRespT1")], names_from = traits, values_from = selfRespT1)
+subsWideT2 <-pivot_wider(fullLong[c("subID","traits","selfRespT2")], names_from = traits, values_from = selfRespT2)
+x <- c("subID","ICC.sub","btVar.sub","wtVar.sub","RO_Stab.sub","aML_Stab.sub","ML_Stab.sub","raw_Stab.sub","RC.sub")
+subICCmat <- matrix(ncol=length(x),nrow=nrow(traits))
+colnames(subICCmat) <- x
+for(i in 1:nrow(subsWideT1)){
+  df <- rbind(subsWideT1[i,2:ncol(subsWideT1)],subsWideT2[i,2:ncol(subsWideT2)])
+  df<-t(df)
+  assign(paste0("ID",i), df)
+  subICCmat[i,] <- c(as.numeric(subsWideT1[i,1]), 
+                  irrNA::iccNA(df[,1:2])$ICCs[3], 
+                  var(apply(df,1,mean),na.rm = T), 
+                  var(apply(df,2,mean),na.rm = T),
+                  psych::fisherz(cor(df,use="pairwise.complete.obs")[1,2]),
+                  mean(abs(df[,1]-df[,2]),na.rm=T),
+                  mean((df[,1]-df[,2]),na.rm=T),
+                  mean((df[,1]-df[,2])/df[,1], na.rm=T),
+                  mean((df[,1]-df[,2])/std.error(df[,1]-df[,2]), na.rm=T)
+  )
+}
+
+subICCmat <- as.data.frame(subICCmat)
+subICCmat$ICCr2z <- psych::fisherz(subICCmat$ICC)
+```
+
 
 ```{r}
 ICCmat <- merge(ICCmat, traits, by = "Idx")
@@ -465,6 +505,16 @@ colnames(inds)[ (ncol(inds)-(length(indDiffNames)-1) ) :ncol(inds)] <- paste0(in
 
 fullLong <- merge(fullLong, inds, by = "subID",all.x=T,all.y = T)
 ```
+
+```{r}
+fullLong <- ICCmat %>% select(Idx:ICCr2z) %>% full_join(fullLong, by="Idx")
+fullLong <- fullLong %>% select(subID:MAIA.All_C, Idx:ICCr2z)
+fullLong <- fullLong %>% full_join(subICCmat,by="subID")
+
+fullLong$aML_Stab.logRat <- log(fullLong$aML_Stab.trait/fullLong$aML_Stab.sub)
+fullLong$RO_Stab.logRat <- log(fullLong$RO_Stab.trait/fullLong$RO_Stab.sub)
+```
+
 
 ```{r}
 write.csv(fullLong, "/Volumes/Research Project/Trait_TestRetest/WeekTRT/output/longChangeInds.csv", row.names = F)
