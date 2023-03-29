@@ -9,7 +9,7 @@ toc: true
 
 ```{r, results='hide',message=FALSE,warning=FALSE}
 library(groundhog)
-pkgs <-  c("lmerTest", "ggeffects","r2glmm", "tidyverse","here", "sjPlot", "ggpubr", "wesanderson", "effectsize")
+pkgs <-  c("lmerTest", "ggeffects","r2glmm", "tidyverse","here", "sjPlot", "ggpubr", "wesanderson", "effectsize", "correlation")
 groundhog.day <- '2022-07-25'
 groundhog.library(pkgs, groundhog.day)
 here::i_am("analysis/finalStableAnalyses.qmd")
@@ -45,18 +45,85 @@ fullLong$SWLS_C.Z <- scale(fullLong$SWLS_C)
 fullLong$MAIA.All_C.Z <- scale(fullLong$MAIA.All_C)
 ```
 
-# **More Dependent Self-Beliefs Are Less Reliable**
+# **Indegree Predicts Less Rank-Order Stability**
+
+```{r}
+KT12 <- fullLong %>% group_by(traits) %>% select(selfRespT1, selfRespT2) %>% correlation(method="Kendall")
+ST12 <- fullLong %>% group_by(traits) %>% select(selfRespT1, selfRespT2) %>% correlation(method="Spearman")
+PT12 <- fullLong %>% group_by(traits) %>% select(selfRespT1, selfRespT2) %>% correlation(method="Pearson")
+
+cor.test(KT12$tau, PT12$r)
+cor.test(ST12$rho, PT12$r)
+cor.test(ST12$rho, KT12$tau)
+```
+
+```{r}
+fullLong$subID <- as.factor(fullLong$subID)
+PT12 <- fullLong %>% group_by(traits) %>% select(traits, subID, selfRespT1, selfRespT2) %>% correlation(method="Kendall",multilevel = T)
+
+fullLong <- fullLong %>% 
+  group_by(subID) %>% 
+  mutate(T1.Rank = rank(selfRespT1), T2.Rank = rank(selfRespT2))
+
+fullLong <- fullLong %>% 
+  mutate(T1.Rank = rank(selfRespT1), T2.Rank = rank(selfRespT2))
+
+m<-lmer( scale(T2.Rank) ~ scale(T1.Rank) * scale(outDegree) + scale(inDegree) * scale(T1.Rank) + valence + ( scale(T1.Rank) + valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+
+m<-lmer( (T2.Rank-T1.Rank) ~ scale(outDegree) + scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+```
+
+## ICC (R to Z)
 
 ```{r}
 m <- lm(scale(ICCr2z) ~ scale(outDegree) + scale(inDegree) + valence, data = ICCmat)
 eta_squared(m)
-tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Reliability", show.df=T)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Rank-Order Stability", show.df=T)
+```
+
+## Correlation
+
+```{r}
+m <- lm(scale(RO_Stab.trait) ~ scale(outDegree) + scale(inDegree) + valence, data = ICCmat)
+eta_squared(m)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Rank-Order Stability", show.df=T)
+```
+
+# Indegree Predicts Less Mean-Level Stability
+
+```{r}
+m <- lm(scale(aML_Stab.trait) ~ scale(outDegree) + scale(inDegree) + valence, data = ICCmat)
+eta_squared(m)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Mean-Level Stability", show.df=T)
+```
+
+```{r}
+m <- lm(scale(aML_Stab.trait) ~ scale(outDegree) * scale(inDegree) + valence, data = ICCmat)
+eta_squared(m)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Rank-Order Stability", show.df=T)
+```
+
+```{r}
+m<-lmer(absDS.Z ~ outDegree.Z + valence + inDegree.Z + ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
 ```
 
 # **Self-Beliefs with More Implications Change Less**
 
 ```{r}
-m<-lmer(absDS.Z ~ outDegree.Z + valence + inDegree.Z +  ( valence + outDegree.Z + inDegree.Z |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+m<-lmer(selfRespT2 ~ selfRespT1 * outDegree + valence + outDegree + inDegree + ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+summary(m)
+ggpredict(m, c("selfRespT1","outDegree")) %>% plot()
+```
+
+```{r}
+m<-lmer(absDS.Z ~ outDegree.Z + valence + inDegree.Z + ( valence + outDegree.Z + inDegree.Z |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
                                  optCtrl=list(maxfun=2e5)))
 r2beta(m)
 ```

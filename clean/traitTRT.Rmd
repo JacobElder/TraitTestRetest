@@ -199,7 +199,7 @@ for(i in 1:nrow(traitssWideT1)){
   df <- rbind(traitssWideT1[i,2:ncol(traitssWideT1)],traitssWideT2[i,2:ncol(traitssWideT2)])
   df<-t(df)
   assign(paste0("ID",i), df)
-  ICCmat[i,] <- c(i, irrNA::iccNA(df[,1:2])$ICCs[3], 
+  ICCmat[i,] <- c(i, irrNA::iccNA(df[,1:2])$ICCs[6], 
                   var(apply(df,1,mean)), 
                   var(apply(df,2,mean)),
                   psych::fisherz(cor(df,use="pairwise.complete.obs")[1,2]),
