@@ -3,16 +3,16 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-Set-Up
+# Set-Up
 
 ```{r}
 library(groundhog)
-pacman::p_load("lmerTest", "ggeffects","r2glmm", "tidyverse","here", "sjPlot", "ggpubr", "wesanderson", "effectsize", "Rmisc")
+pacman::p_load("lmerTest", "ggeffects","r2glmm", "tidyverse","here", "sjPlot", "ggpubr", "wesanderson", "effectsize", "Rmisc", "NatParksPalettes")
 here::i_am("analysis/finalStableAnalyses.qmd")
 plotDir <- "/Volumes/Research Project/Trait_TestRetest/WeekTRT/plots/"
 ```
 
-Import Data
+# Import Data
 
 ```{r}
 fullLong <- as.data.frame( arrow::read_parquet(here::here("data/longChangeInds.parquet")) ) 
@@ -24,289 +24,125 @@ traits <- rbind(posTraits,negTraits)
 traits$id <- 1:296
 ```
 
+# Set-Up Miscellaneous
+
 ```{r}
 pal <- colorRampPalette(wes_palette("Zissou1", 5))(length(unique(fullLong$subID)))
 pal <- colorRampPalette(natparks.pals("SmokyMtns"))(length(unique(fullLong$subID)))
 fullLong$subID <- as.factor(fullLong$subID)
+plotDir <- "/Volumes/Research Project/Trait_TestRetest/WeekTRT/plots/"
 ```
+
+# Rank Order Stability
+
+```{r}
+ggplot(ICCmat, aes(x=inDegree, y=RO_Stab.trait)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm',color="black") + 
+  xlab("Indegree Centrality") +
+  ylab("Test-Retest Consistency") +
+  jtools::theme_apa()
+```
+
+
+# Mean-Level Change Main Effect
 
 ```{r}
 m<-lmer(absDS ~ outDegree + valence + inDegree +  ( valence + outDegree + inDegree |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
                                  optCtrl=list(maxfun=2e5)))
 mer <- ggpredict(m, terms = c("outDegree", "subID"), type = "re")
 mef <- ggpredict(m, terms = c("outDegree"))
-p1<-plot(mer, ci=F, show.title=F) + scale_color_manual(values=pal)  + jtools::theme_apa() + theme(legend.position = "none") + xlab("Outdegree Centrality") + ylab("Mean-Level Change") + geom_line(alpha=.001)
-p2 <- plot(mef, show.title=F) + jtools::theme_apa() + theme(legend.position = "none") + xlab("Outdegree Centrality") + ylab("Mean-Level Change")
-p3 <- (p1+p2)
-p3
-
-test<-p1 +
-  geom_line(data = mef, aes(x=x,y=predicted), alpha = .8, size = 3)
-
-p2 + geom_line(data=mer, aes(x=x,y=predicted, color=group), alpha= .4)  + scale_color_manual(values=pal)
 
 plotthat <- ggplot(mef, aes(x, predicted)) + geom_line(data=mer, aes(x=x,y=predicted, color=group), alpha= .30)  + scale_color_manual(values=pal) +  geom_line() + geom_ribbon(aes(ymin=conf.low, ymax=conf.high), alpha=0.30) + theme(axis.text=element_text(size=12),
         axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
 panel.background = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position = "none") + xlab("Outdegree Centrality") + ylab("Mean-Level Change")  + ylim(-1,3)  + scale_y_continuous(breaks=c(0,.25,.5,.75,1,1.25,1.50,1.75,2))
 plotthat
-ggsave("~/Desktop/change.jpg", plotthat, width=4, height=6, units="in")
+
+ggsave(paste0(plotDir,"changeME",".png"), width = 9, height = 5, dpi=500, units="in")
+ggsave(paste0(plotDir,"changeME",".tiff"), width = 9, height = 5, dpi=500, units="in")
 ```
 
+# Self-Concept Clarity and Mean-Level Change
+
 ```{r}
-T1 <- summarySE(data=fullLong, measurevar="selfRespT1", groupvars = c("Idx"),na.rm=T)
-T2 <- summarySE(data=fullLong, measurevar="selfRespT2", groupvars = c("Idx"),na.rm=T)
-
-df_1x1 <- data_1x1(
-  array_1 = T1$selfRespT1[1:296],
-  array_2 = T2$selfRespT2[1:296],
-  jit_distance = .09,
-  jit_seed = 321)
-
-df_1x1 <- merge(df_1x1, traits, by=c("id"))
+m<-lmer( absDS ~ SCC_C*outDegree + ( outDegree | subID ) + ( SCC_C | traits), data= fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
 ```
 
 
 ```{r}
-# Create jittered data points and connecting lines plot
-jitter_factor <- 0
-p1 <- ggplot(data_long, aes(x=Condition, y=Value)) +
-  geom_line(color="lightgray", aes(group = Subject)) +
-  geom_half_violin(data = filter(data_long, Condition == "Condition1"),
-                   aes(x = Condition, y = Value), side = "l") + 
-  geom_half_boxplot(data = filter(data_long, Condition == "Condition1"),
-                    aes(x = Condition, y = Value, colour = Condition), side = "l", width = 0.2, notch = TRUE)+
-  geom_half_violin(data = filter(data_long, Condition == "Condition2"),
-                   aes(x = Condition, y = Value), side = "r") + 
-  geom_half_boxplot(data = filter(data_long, Condition == "Condition2"),
-                    aes(x = Condition, y = Value, colour = Condition), side = "r", width = 0.2, notch = TRUE)+
-  geom_hline(yintercept=0, linetype="dashed", 
-               color = "black", linewidth=.5)+
-  
-  geom_point(aes(color=Condition, group = Condition), position=position_jitter(width=jitter_factor, height = 0),
-                  size=1, shape = 21) +
-  theme_cowplot() +
-  labs(x="Repeated Variable", y="Value") +
-  theme(legend.position="none")
+p <- ggpredict(m, c("SCC_C","outDegree"))
+SCC.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=group, color=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, fill=group), alpha=0.15) + scale_linetype_discrete(labels = c("Low Outdegree","Medium Outdegree","High Outdegree")) + scale_color_manual(labels = c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + scale_fill_manual( 
+                      labels=c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + theme(
+    legend.position = c(.2, .7),
+    legend.justification = c("left", "bottom"),
+    legend.box.just = "left",
+    legend.margin = margin(6, 6, 6, 6)
+    ) + theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("Self-Concept Clarity") + ylab("Mean-Level Change")
+SCC.outdeg.Stable.Plot
+
+ggpredict(m, c("SCC_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw Data",x="Self-Concept Clarity",y="Change")
 ```
 
-```{r}
-if (!require(remotes)) {
-    install.packages("remotes")
-}
-remotes::install_github('jorvlan/raincloudplots')
-
-library(raincloudplots)
-```
+# Self-Esteen and Mean-Level Change
 
 ```{r}
-raincloud_2 <- raincloud_1x1_repmes(
-  data = df_1x1,
-  colors = (c('dodgerblue', 'darkorange')),
-  fills = (c('dodgerblue', 'darkorange')),
-  line_color = 'gray',
-  line_alpha = .3,
-  size = 1,
-  alpha = .6,
-  align_clouds = FALSE) +
- 
-scale_x_continuous(breaks=c(1,2), labels=c("Pre", "Post"), limits=c(0, 3)) +
-  xlab("Time") + 
-  ylab("Score") +
-  theme_classic()
-
-raincloud_2
+m<-lmer( absDS ~ SE_C*outDegree + ( outDegree | subID ) + ( SE_C | traits), data= fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
 ```
 
 
 ```{r}
-traits$HLo <- ifelse(traits$outDegree < median(traits$outDegree), 1, 0)
-traits$HLi <- ifelse(traits$inDegree < median(traits$inDegree), 1, 0)
-traits$Idx <- 1:296
+p <- ggpredict(m, c("SE_C","outDegree"))
+SE.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=group, color=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, fill=group), alpha=0.15) + scale_linetype_discrete(labels = c("Low Outdegree","Medium Outdegree","High Outdegree")) + scale_color_manual(labels = c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + scale_fill_manual( 
+                      labels=c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + theme(
+    legend.position = c(.2, .10),
+    legend.justification = c("left", "bottom"),
+    legend.box.just = "left",
+    legend.margin = margin(6, 6, 6, 6)
+    ) + theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("Self-Esteem") + ylab("Mean-Level Change")
+SE.outdeg.Stable.Plot
 
-T1 <- summarySE(data=fullLong, measurevar="selfRespT1", groupvars = c("Idx"),na.rm=T)
-T2 <- summarySE(data=fullLong, measurevar="selfRespT2", groupvars = c("Idx"),na.rm=T)
-
-T1 <- merge(T1, traits, by = "Idx")
-T2 <- merge(T2, traits, by = "Idx")
-
-df_2x2 <- data_2x2(
-  array_1 = T1$selfRespT1[T1$HLo==1],
-  array_2 = T1$selfRespT1[T1$HLo==0],
-  array_3 = T2$selfRespT2[T1$HLo==1],
-  array_4 = T2$selfRespT2[T1$HLo==0],
-  labels = (c('Lower Outdegree','Higher Outdegree')),
-  jit_distance = .09,
-  jit_seed = 321,
-  spread_x_ticks = FALSE) 
-
-df_2x2_spread <- data_2x2(
-  array_1 = T1$selfRespT1[T1$HLo==1],
-  array_3 = T1$selfRespT1[T1$HLo==0],
-  array_2 = T2$selfRespT2[T1$HLo==1],
-  array_4 = T2$selfRespT2[T1$HLo==0],
-  labels = (c('Lower Outdegree','Higher Outdegree')),
-  jit_distance = .09,
-  jit_seed = 321,
-  spread_x_ticks = TRUE) 
-
-df_2x2in <- data_2x2(
-  array_1 = T1$selfRespT1[T1$HLi==1],
-  array_3 = T1$selfRespT1[T1$HLi==0],
-  array_2 = T2$selfRespT2[T1$HLi==1],
-  array_4 = T2$selfRespT2[T1$HLi==0],
-  labels = (c('Lower Outdegree','Higher Outdegree')),
-  jit_distance = .09,
-  jit_seed = 321,
-  spread_x_ticks = FALSE) 
-
-df_2x2_spreadin <- data_2x2(
-  array_1 = T1$selfRespT1[T1$HLi==1],
-  array_3 = T1$selfRespT1[T1$HLi==0],
-  array_2 = T2$selfRespT2[T1$HLi==1],
-  array_4 = T2$selfRespT2[T1$HLi==0],
-  labels = (c('Lower Outdegree','Higher Outdegree')),
-  jit_distance = .09,
-  jit_seed = 321,
-  spread_x_ticks = TRUE) 
+ggpredict(m, c("SE_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw Data",x="Self-Esteem",y="Change")
 ```
 
-```{r}
-raincloud_2x2 <- raincloud_2x2_repmes(
-  data = df_2x2in,
-  colors = (c('dodgerblue', 'darkorange', 'dodgerblue', 'darkorange')),
-  fills = (c('dodgerblue', 'darkorange', 'dodgerblue', 'darkorange')),
-  size = 1,
-  alpha = .6,
-  spread_x_ticks = FALSE) +
-
-scale_x_continuous(breaks=c(1,2), labels=c("Pre", "Post"), limits=c(0, 3)) +
-  xlab("Time") + 
-  ylab("Score") +
-  theme_classic()
-
-raincloud_2x2
-```
+# Depressive Symptoms
 
 ```{r}
-df <- data.frame(T1=T1$selfRespT1, T2=T2$selfRespT2, outdegree=traits$outDegree, indegree=traits$inDegree,valence=traits$valence)
-df$diff <- abs(df$T2-df$T1)
-
-
-ggplot(df, aes(color=outdegree, x=T1, y=T2)) + geom_point() + geom_smooth(color="black",alpha=.8) + 
-  scale_colour_gradientn(colours = c("#fee0d2","#fc9272","#de2d26"), values=c(1,.5,0))
-  #scale_colour_brewer(palette = "YlOrRd")
-
-ggplot(ICCmat, aes(x=inDegree, y=RO_Stab.trait)) + geom_point() + 
-  scale_colour_gradientn(colours = c("#fee0d2","#fc9272","#de2d26"), values=c(1,.5,0)) +
-  geom_smooth (alpha=0.3, size=0, span=0.5) +
-stat_smooth (geom="line", alpha=0.3, span=0.5, method="lm")
-
-ggplot(ICCmat, aes(x=inDegree, y=RO_Stab.trait)) + geom_point() + 
-  scale_colour_gradientn(colours = c("#fee0d2","#fc9272","#de2d26"), values=c(1,.5,0)) +
-  geom_smooth (alpha=0.3, size=0, span=0.5) +
-stat_smooth (geom="line", alpha=0.3, span=0.5, method="lm")
-```
-
-```{r}
-test <- fullLong[!is.na(fullLong$absDS),] %>% ggplot(aes(x=outDegree,y=absDS)) + geom_point(size=.2) + geom_smooth(method="lm",color="dodgerblue") + facet_wrap(~subID)  + 
-theme(
-  strip.background = element_blank(),
-  strip.text.x = element_blank()
-)
-ggsave(test, "~/Desktop/test.png", units="in", width=8, height=8)
-
-fullLong %>% ggplot(aes(x=outDegree,y=absDS)) + geom_smooth(method="lm",color="black") + geom_point()
-```
-
-```{r}
-model1 <- lm(absDS.Z ~ outDegree.Z + valence + inDegree.Z + subID,
-             data = fullLong)
-tidy(model1, conf.int = TRUE)
-library(lmtest)
-library(sandwich)
-model1_robust_clustered_corrected <- coeftest(model1,
-                                              vcov = vcovCL,
-                                              type = "HC1",
-                                              df = 115,  # There are 3 species, so 3-1 = 2
-                                              cluster = ~subID)
-tidy(model1_robust_clustered_corrected, conf.int = TRUE)
-
-install.packages("gee")
-library(gee)
+m<-lmer( absDS ~ CESD_C*outDegree + ( outDegree | subID ) + ( CESD_C | traits), data= fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
 ```
 
 
 ```{r}
-install.packages("gee")
+p <- ggpredict(m, c("CESD_C","outDegree"))
+CESD.outdeg.Stable.Plot <-ggplot(p, aes(x, predicted)) +  geom_line(aes(linetype=group, color=group)) + geom_ribbon(aes(ymin=conf.low, ymax=conf.high, fill=group), alpha=0.15) + scale_linetype_discrete(labels = c("Low Outdegree","Medium Outdegree","High Outdegree")) + scale_color_manual(labels = c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + scale_fill_manual( 
+                      labels=c("Low Outdegree","Medium Outdegree","High Outdegree"), values = wes_palette("Darjeeling1")) + theme(
+    legend.position = c(.55, .10),
+    legend.justification = c("left", "bottom"),
+    legend.box.just = "left",
+    legend.margin = margin(6, 6, 6, 6)
+    ) + theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=12,face="bold")) + theme(legend.text = element_text(size=12)) + theme(panel.border = element_rect(colour = "black", fill = NA, size =1)) + theme(legend.title = element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("Depressive Symptoms") + ylab("Mean-Level Change")
+CESD.outdeg.Stable.Plot
 
-library(gee)
-
-dep_gee <- gee(absDS.Z ~ outDegree.Z + valence + inDegree.Z,
-               data = fullLong, 
-               id = subID, 
-               corstr = "exchangeable")
-summary(dep_gee)
-2 * pnorm(abs(coef(summary(dep_gee))[,5]), lower.tail = FALSE)
+ggpredict(m, c("CESD_C","outDegree")) %>% plot(add.data=T) + labs(title="Raw Data",x="Depressive Symptoms",y="Change")
 ```
+
+# Combine Self-Esteem, Self-Concept Clarity, Depressive Symptoms
 
 ```{r}
-traits <- traits[order(-traits$outDegree),]
-traits$rankOut <- 1:296
-
-fullLong <- traits %>% select(Idx,rankOut) %>% right_join(fullLong, by = "Idx")
-
-fullLong
-test<-lapply(1:296, function(x) {
-  df_1x1 <- data_1x1(
-    array_1 = fullLong$selfRespT1[fullLong$rankOut==x],
-    array_2 = fullLong$selfRespT2[fullLong$rankOut==x],
-    jit_distance = .09,
-    jit_seed = 321)
-
-raincloud_2 <- raincloud_1x1_repmes(
-    data = df_1x1,
-    colors = (c('dodgerblue', 'darkorange')),
-    fills = (c('dodgerblue', 'darkorange')),
-    line_color = 'gray',
-    line_alpha = .3,
-    size = 1,
-    alpha = .6,
-    align_clouds = FALSE) +
-    
-    scale_x_continuous(breaks=c(1,2), labels=c("Pre", "Post"), limits=c(0, 3)) +
-    xlab("Time") + 
-    ylab("Score") +
-    theme_classic()
-
-}
-)
-
-print(test[[51]])
-raincloud_2
+ggarrange(SE.outdeg.Stable.Plot, SCC.outdeg.Stable.Plot, CESD.outdeg.Stable.Plot, nrow=1, ncol=3, common.legend = T)
+ggsave(paste0(plotDir,"IndDiff.outdegStable",".png"), width = 13, height = 7.5, units = "in")
+ggsave(paste0(plotDir,"IndDiff.outdegStable",".tiff"), width = 13, height = 7.5, units = "in")
 ```
-
-```{r}
-test <- ggplot(fullLong, aes(x=selfRespT1, y=selfRespT2)) + geom_point(size=.5)+geom_smooth()+facet_wrap(~rankOut)   + 
-theme(
-  strip.background = element_blank(),
-  strip.text.x = element_blank()
-)
-```
-```{r}
-test <- ggplot(fullLong, aes(x=outDegree, y=absDS)) + geom_point(size=.5)+geom_smooth()+facet_wrap(~subID)   +
-theme(
-  strip.background = element_blank(),
-  strip.text.x = element_blank()
-)
-
-test
-```
-
-
-
-
-
-
-
 
 

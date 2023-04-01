@@ -6,7 +6,9 @@ output: html_notebook
 ```{r}
 library(tidyverse)
 library(irrNA)
+library(igraph)
 ```
+
 
 
 ```{r}
@@ -118,6 +120,8 @@ timeFull <- times1 %>% full_join(times2, by="subID")
 
 mean(difftime(timeFull$StartDate.y,timeFull$StartDate.x),na.rm=T)
 sd(difftime(timeFull$StartDate.y,timeFull$StartDate.x),na.rm=T)
+
+timeFull$timeDiff <- difftime(timeFull$StartDate.y,timeFull$StartDate.x)
 ```
 
 
@@ -192,7 +196,7 @@ d2.. <- function(x1,x2) d2.
 
 traitssWideT1 <-pivot_wider(fullLong[c("subID","traits","selfRespT1")], names_from = subID, values_from = selfRespT1)
 traitssWideT2 <-pivot_wider(fullLong[c("subID","traits","selfRespT2")], names_from = subID, values_from = selfRespT2)
-x <- c("Idx","ICC.trait","btVar.trait","wtVar.trait","RO_Stab.trait","aML_Stab.trait","ML_Stab.trait","raw_Stab.trait","RC.trait")
+x <- c("Idx","ICC.trait","btVar.trait","wtVar.trait","RO_Stab.trait","aML_Stab.trait","ML_Stab.trait","raw_Stab.trait","RC.trait", "Tau","Rho")
 ICCmat <- matrix(ncol=length(x),nrow=nrow(traits))
 colnames(ICCmat) <- x
 for(i in 1:nrow(traitssWideT1)){
@@ -206,12 +210,19 @@ for(i in 1:nrow(traitssWideT1)){
                   mean(abs(df[,1]-df[,2]),na.rm=T),
                   mean((df[,1]-df[,2]),na.rm=T),
                   mean((df[,1]-df[,2])/df[,1], na.rm=T),
-                  mean((df[,1]-df[,2])/std.error(df[,1]-df[,2]), na.rm=T)
+                  mean((df[,1]-df[,2])/std.error(df[,1]-df[,2]), na.rm=T),
+                  Kendall::Kendall(df[,1],df[,2])$tau[1],
+                  cor(df[,1:2],method="spearman",use="pairwise.complete.obs")[1,2]
                   )
 }
 
 ICCmat <- as.data.frame(ICCmat)
 ICCmat$ICCr2z <- psych::fisherz(ICCmat$ICC)
+
+library(correlation)
+KT12 <- fullLong %>% group_by(traits) %>% select(selfRespT1, selfRespT2) %>% correlation(method="Kendall")
+ST12 <- fullLong %>% group_by(traits) %>% select(selfRespT1, selfRespT2) %>% correlation(method="Spearman")
+PT12 <- fullLong %>% group_by(traits) %>% select(selfRespT1, selfRespT2) %>% correlation(method="Pearson")
 ```
 
 # Subject-Level ICCs
@@ -235,6 +246,7 @@ for(i in 1:nrow(subsWideT1)){
                   mean((df[,1]-df[,2]),na.rm=T),
                   mean((df[,1]-df[,2])/df[,1], na.rm=T),
                   mean((df[,1]-df[,2])/std.error(df[,1]-df[,2]), na.rm=T)
+                  
   )
 }
 
@@ -245,6 +257,9 @@ subICCmat$ICCr2z <- psych::fisherz(subICCmat$ICC)
 
 ```{r}
 ICCmat <- merge(ICCmat, traits, by = "Idx")
+
+ICCmat <- KT12 %>% as_tibble() %>% rename(trait = Group) %>% select(trait, tau) %>% right_join(ICCmat, by = "trait")
+ICCmat <- ST12 %>% as_tibble() %>% rename(trait = Group) %>% select(trait, rho) %>% right_join(ICCmat, by = "trait")
 ```
 
 ```{r}
@@ -514,6 +529,45 @@ fullLong <- fullLong %>% full_join(subICCmat,by="subID")
 fullLong$aML_Stab.logRat <- log(fullLong$aML_Stab.trait/fullLong$aML_Stab.sub)
 fullLong$RO_Stab.logRat <- log(fullLong$RO_Stab.trait/fullLong$RO_Stab.sub)
 ```
+
+
+```{r}
+posDf <- read.csv("~/Google Drive/Volumes//Research Project/Trait Network_Behaviral/generating network/output/adjacencyMatrix_p.csv")
+posMat <- as.matrix(posDf)
+posGraph <- graph.adjacency(posMat)
+
+negDf <- read.csv("~/Google Drive/Volumes//Research Project/Trait Network_Behaviral/generating network/output/adjacencyMatrix_n.csv")
+negMat <- as.matrix(negDf)
+negGraph <- graph.adjacency(negMat)
+
+outPR <- c(page.rank(graph.adjacency(t(posMat)))$vector,
+           page.rank(graph.adjacency(t(negMat)))$vector
+           )
+inPR <- c(page.rank(graph.adjacency((posMat)))$vector,
+           page.rank(graph.adjacency((negMat)))$vector
+           )
+hub <- c(hub.score(posGraph)$vector,
+         hub.score(negGraph)$vector
+         )
+auth <- c(authority.score(posGraph)$vector,
+          authority.score(negGraph)$vector
+          )
+outClose <- c(closeness(posGraph, mode="out"),
+              closeness(negGraph, mode="out")
+)
+inClose <- c(closeness(posGraph, mode="in"),
+              closeness(negGraph, mode="in")
+)
+netDF <- data.frame(Idx=1:296, outPR, inPR, hub, auth, outClose, inClose)
+
+fullLong <- merge(fullLong, netDF, by="Idx")
+```
+
+```{r}
+fullLong <- timeFull %>% select(subID, timeDiff) %>% right_join(fullLong, by="subID")
+```
+
+
 
 
 ```{r}

@@ -1,0 +1,264 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+T1 <- summarySE(data=fullLong, measurevar="selfRespT1", groupvars = c("Idx"),na.rm=T)
+T2 <- summarySE(data=fullLong, measurevar="selfRespT2", groupvars = c("Idx"),na.rm=T)
+
+df_1x1 <- data_1x1(
+  array_1 = T1$selfRespT1[1:296],
+  array_2 = T2$selfRespT2[1:296],
+  jit_distance = .09,
+  jit_seed = 321)
+
+df_1x1 <- merge(df_1x1, traits, by=c("id"))
+```
+
+
+```{r}
+# Create jittered data points and connecting lines plot
+jitter_factor <- 0
+p1 <- ggplot(data_long, aes(x=Condition, y=Value)) +
+  geom_line(color="lightgray", aes(group = Subject)) +
+  geom_half_violin(data = filter(data_long, Condition == "Condition1"),
+                   aes(x = Condition, y = Value), side = "l") + 
+  geom_half_boxplot(data = filter(data_long, Condition == "Condition1"),
+                    aes(x = Condition, y = Value, colour = Condition), side = "l", width = 0.2, notch = TRUE)+
+  geom_half_violin(data = filter(data_long, Condition == "Condition2"),
+                   aes(x = Condition, y = Value), side = "r") + 
+  geom_half_boxplot(data = filter(data_long, Condition == "Condition2"),
+                    aes(x = Condition, y = Value, colour = Condition), side = "r", width = 0.2, notch = TRUE)+
+  geom_hline(yintercept=0, linetype="dashed", 
+               color = "black", linewidth=.5)+
+  
+  geom_point(aes(color=Condition, group = Condition), position=position_jitter(width=jitter_factor, height = 0),
+                  size=1, shape = 21) +
+  theme_cowplot() +
+  labs(x="Repeated Variable", y="Value") +
+  theme(legend.position="none")
+```
+
+```{r}
+if (!require(remotes)) {
+    install.packages("remotes")
+}
+remotes::install_github('jorvlan/raincloudplots')
+
+library(raincloudplots)
+```
+
+```{r}
+raincloud_2 <- raincloud_1x1_repmes(
+  data = df_1x1,
+  colors = (c('dodgerblue', 'darkorange')),
+  fills = (c('dodgerblue', 'darkorange')),
+  line_color = 'gray',
+  line_alpha = .3,
+  size = 1,
+  alpha = .6,
+  align_clouds = FALSE) +
+ 
+scale_x_continuous(breaks=c(1,2), labels=c("Pre", "Post"), limits=c(0, 3)) +
+  xlab("Time") + 
+  ylab("Score") +
+  theme_classic()
+
+raincloud_2
+```
+
+
+```{r}
+traits$HLo <- ifelse(traits$outDegree < median(traits$outDegree), 1, 0)
+traits$HLi <- ifelse(traits$inDegree < median(traits$inDegree), 1, 0)
+traits$Idx <- 1:296
+
+T1 <- summarySE(data=fullLong, measurevar="selfRespT1", groupvars = c("Idx"),na.rm=T)
+T2 <- summarySE(data=fullLong, measurevar="selfRespT2", groupvars = c("Idx"),na.rm=T)
+
+T1 <- merge(T1, traits, by = "Idx")
+T2 <- merge(T2, traits, by = "Idx")
+
+df_2x2 <- data_2x2(
+  array_1 = T1$selfRespT1[T1$HLo==1],
+  array_2 = T1$selfRespT1[T1$HLo==0],
+  array_3 = T2$selfRespT2[T1$HLo==1],
+  array_4 = T2$selfRespT2[T1$HLo==0],
+  labels = (c('Lower Outdegree','Higher Outdegree')),
+  jit_distance = .09,
+  jit_seed = 321,
+  spread_x_ticks = FALSE) 
+
+df_2x2_spread <- data_2x2(
+  array_1 = T1$selfRespT1[T1$HLo==1],
+  array_3 = T1$selfRespT1[T1$HLo==0],
+  array_2 = T2$selfRespT2[T1$HLo==1],
+  array_4 = T2$selfRespT2[T1$HLo==0],
+  labels = (c('Lower Outdegree','Higher Outdegree')),
+  jit_distance = .09,
+  jit_seed = 321,
+  spread_x_ticks = TRUE) 
+
+df_2x2in <- data_2x2(
+  array_1 = T1$selfRespT1[T1$HLi==1],
+  array_3 = T1$selfRespT1[T1$HLi==0],
+  array_2 = T2$selfRespT2[T1$HLi==1],
+  array_4 = T2$selfRespT2[T1$HLi==0],
+  labels = (c('Lower Outdegree','Higher Outdegree')),
+  jit_distance = .09,
+  jit_seed = 321,
+  spread_x_ticks = FALSE) 
+
+df_2x2_spreadin <- data_2x2(
+  array_1 = T1$selfRespT1[T1$HLi==1],
+  array_3 = T1$selfRespT1[T1$HLi==0],
+  array_2 = T2$selfRespT2[T1$HLi==1],
+  array_4 = T2$selfRespT2[T1$HLi==0],
+  labels = (c('Lower Outdegree','Higher Outdegree')),
+  jit_distance = .09,
+  jit_seed = 321,
+  spread_x_ticks = TRUE) 
+```
+
+```{r}
+raincloud_2x2 <- raincloud_2x2_repmes(
+  data = df_2x2in,
+  colors = (c('dodgerblue', 'darkorange', 'dodgerblue', 'darkorange')),
+  fills = (c('dodgerblue', 'darkorange', 'dodgerblue', 'darkorange')),
+  size = 1,
+  alpha = .6,
+  spread_x_ticks = FALSE) +
+
+scale_x_continuous(breaks=c(1,2), labels=c("Pre", "Post"), limits=c(0, 3)) +
+  xlab("Time") + 
+  ylab("Score") +
+  theme_classic()
+
+raincloud_2x2
+```
+
+```{r}
+df <- data.frame(T1=T1$selfRespT1, T2=T2$selfRespT2, outdegree=traits$outDegree, indegree=traits$inDegree,valence=traits$valence)
+df$diff <- abs(df$T2-df$T1)
+
+
+ggplot(df, aes(color=outdegree, x=T1, y=T2)) + geom_point() + geom_smooth(color="black",alpha=.8) + 
+  scale_colour_gradientn(colours = c("#fee0d2","#fc9272","#de2d26"), values=c(1,.5,0))
+  #scale_colour_brewer(palette = "YlOrRd")
+
+ggplot(ICCmat, aes(x=inDegree, y=RO_Stab.trait)) + geom_point() + 
+  scale_colour_gradientn(colours = c("#fee0d2","#fc9272","#de2d26"), values=c(1,.5,0)) +
+  geom_smooth (alpha=0.3, size=0, span=0.5) +
+stat_smooth (geom="line", alpha=0.3, span=0.5, method="lm")
+
+ggplot(ICCmat, aes(x=inDegree, y=RO_Stab.trait)) + geom_point() + 
+  scale_colour_gradientn(colours = c("#fee0d2","#fc9272","#de2d26"), values=c(1,.5,0)) +
+  geom_smooth (alpha=0.3, size=0, span=0.5) +
+stat_smooth (geom="line", alpha=0.3, span=0.5, method="lm")
+```
+
+```{r}
+test <- fullLong[!is.na(fullLong$absDS),] %>% ggplot(aes(x=outDegree,y=absDS)) + geom_point(size=.2) + geom_smooth(method="lm",color="dodgerblue") + facet_wrap(~subID)  + 
+theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave(test, "~/Desktop/test.png", units="in", width=8, height=8)
+
+fullLong %>% ggplot(aes(x=outDegree,y=absDS)) + geom_smooth(method="lm",color="black") + geom_point()
+```
+
+```{r}
+model1 <- lm(absDS.Z ~ outDegree.Z + valence + inDegree.Z + subID,
+             data = fullLong)
+tidy(model1, conf.int = TRUE)
+library(lmtest)
+library(sandwich)
+model1_robust_clustered_corrected <- coeftest(model1,
+                                              vcov = vcovCL,
+                                              type = "HC1",
+                                              df = 115,  # There are 3 species, so 3-1 = 2
+                                              cluster = ~subID)
+tidy(model1_robust_clustered_corrected, conf.int = TRUE)
+
+install.packages("gee")
+library(gee)
+```
+
+
+```{r}
+install.packages("gee")
+
+library(gee)
+
+dep_gee <- gee(absDS.Z ~ outDegree.Z + valence + inDegree.Z,
+               data = fullLong, 
+               id = subID, 
+               corstr = "exchangeable")
+summary(dep_gee)
+2 * pnorm(abs(coef(summary(dep_gee))[,5]), lower.tail = FALSE)
+```
+
+```{r}
+traits <- traits[order(-traits$outDegree),]
+traits$rankOut <- 1:296
+
+fullLong <- traits %>% select(Idx,rankOut) %>% right_join(fullLong, by = "Idx")
+
+fullLong
+test<-lapply(1:296, function(x) {
+  df_1x1 <- data_1x1(
+    array_1 = fullLong$selfRespT1[fullLong$rankOut==x],
+    array_2 = fullLong$selfRespT2[fullLong$rankOut==x],
+    jit_distance = .09,
+    jit_seed = 321)
+
+raincloud_2 <- raincloud_1x1_repmes(
+    data = df_1x1,
+    colors = (c('dodgerblue', 'darkorange')),
+    fills = (c('dodgerblue', 'darkorange')),
+    line_color = 'gray',
+    line_alpha = .3,
+    size = 1,
+    alpha = .6,
+    align_clouds = FALSE) +
+    
+    scale_x_continuous(breaks=c(1,2), labels=c("Pre", "Post"), limits=c(0, 3)) +
+    xlab("Time") + 
+    ylab("Score") +
+    theme_classic()
+
+}
+)
+
+print(test[[51]])
+raincloud_2
+```
+
+```{r}
+test <- ggplot(fullLong, aes(x=selfRespT1, y=selfRespT2)) + geom_point(size=.5)+geom_smooth()+facet_wrap(~rankOut)   + 
+theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+```
+
+```{r}
+test <- ggplot(fullLong, aes(x=outDegree, y=absDS)) + geom_point(size=.5)+geom_smooth()+facet_wrap(~subID)   +
+theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+
+test
+```
+
+
+
+
+
+
+
+
+

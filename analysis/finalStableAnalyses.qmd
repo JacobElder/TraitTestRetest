@@ -43,6 +43,11 @@ fullLong$DS_C.Z <- scale(fullLong$DS_C)
 fullLong$CESD_C.Z <- scale(fullLong$CESD_C)
 fullLong$SWLS_C.Z <- scale(fullLong$SWLS_C)
 fullLong$MAIA.All_C.Z <- scale(fullLong$MAIA.All_C)
+fullLong$timeDiff.Z <- scale(fullLong$timeDiff)
+
+fullLong <- fullLong %>% 
+  group_by(subID) %>% 
+  mutate(T1.Rank = rank(selfRespT1), T2.Rank = rank(selfRespT2))
 ```
 
 # **Indegree Predicts Less Rank-Order Stability**
@@ -61,16 +66,7 @@ cor.test(ST12$rho, KT12$tau)
 fullLong$subID <- as.factor(fullLong$subID)
 PT12 <- fullLong %>% group_by(traits) %>% select(traits, subID, selfRespT1, selfRespT2) %>% correlation(method="Kendall",multilevel = T)
 
-fullLong <- fullLong %>% 
-  group_by(subID) %>% 
-  mutate(T1.Rank = rank(selfRespT1), T2.Rank = rank(selfRespT2))
 
-fullLong <- fullLong %>% 
-  mutate(T1.Rank = rank(selfRespT1), T2.Rank = rank(selfRespT2))
-
-m<-lmer( scale(T2.Rank) ~ scale(T1.Rank) * scale(outDegree) + scale(inDegree) * scale(T1.Rank) + valence + ( scale(T1.Rank) + valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
-                                 optCtrl=list(maxfun=2e5)))
-summary(m)
 
 m<-lmer( (T2.Rank-T1.Rank) ~ scale(outDegree) + scale(inDegree) + valence + ( valence |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
                                  optCtrl=list(maxfun=2e5)))
@@ -80,7 +76,7 @@ summary(m)
 ## ICC (R to Z)
 
 ```{r}
-m <- lm(scale(ICCr2z) ~ scale(outDegree) + scale(inDegree) + valence, data = ICCmat)
+m <- lm(scale(Rho) ~ scale(outDegree) + scale(inDegree) + valence, data = ICCmat)
 eta_squared(m)
 tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Rank-Order Stability", show.df=T)
 ```
@@ -113,14 +109,22 @@ m<-lmer(absDS.Z ~ outDegree.Z + valence + inDegree.Z + ( 1 |subID) + (1 | traits
 summary(m)
 ```
 
-# **Self-Beliefs with More Implications Change Less**
+```{r}
+m<-lmer(selfRespT2.Z ~ outDegree.Z * selfRespT1.Z + valence + inDegree.Z * selfRespT1.Z * SE_C.Z +  ( valence + selfRespT1.Z |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+```
 
 ```{r}
-m<-lmer(selfRespT2 ~ selfRespT1 * outDegree + valence + outDegree + inDegree + ( 1 |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+m<-lmer(selfRespT2.Z ~ scale(outClose) * selfRespT1.Z + valence + scale(inClose) * selfRespT1.Z +  ( valence + selfRespT1.Z |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
                                  optCtrl=list(maxfun=2e5)))
-summary(m)
-ggpredict(m, c("selfRespT1","outDegree")) %>% plot()
 ```
+
+```{r}
+m<-lmer(selfRespT2.Z ~ scale(between) * selfRespT1.Z +  ( valence + selfRespT1.Z |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+```
+
+# **Self-Beliefs with More Implications Exhibit More Mean-Level Stability**
 
 ```{r}
 m<-lmer(absDS.Z ~ outDegree.Z + valence + inDegree.Z + ( valence + outDegree.Z + inDegree.Z |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
@@ -140,7 +144,7 @@ m<-lmer(absDS.Z ~ outDegree.Z + valence + inDegree.Z + interpersonal.Z + categor
 ```
 
 ```{r}
-tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Confidence", df.method = "satterthwaite",show.df=T)
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Mean-Level Change", df.method = "satterthwaite",show.df=T)
 ```
 
 # Correlations with ICC
@@ -349,4 +353,26 @@ ggsave(paste0(plotDir,"IndDiff.outdegStable",".png"), width = 13, height = 7.5, 
 ggsave(paste0(plotDir,"IndDiff.outdegStable",".tiff"), width = 13, height = 7.5, units = "in")
 ```
 
-# 
+## Rank-Order Stability
+
+### Outdegree
+
+```{r}
+m<-lmer( scale(T2.Rank) ~ scale(T1.Rank) * scale(outDegree) + scale(inDegree) + scale(T1.Rank) + valence + ( scale(T1.Rank) + valence + scale(outDegree) + scale(inDegree) |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+```
+
+```{r}
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Rank-Order Stability", df.method = "satterthwaite",show.df=T)
+```
+
+### Indegree
+
+```{r}
+m<-lmer( scale(T2.Rank) ~ scale(T1.Rank) + scale(outDegree) + scale(inDegree) * scale(T1.Rank) + valence + ( scale(T1.Rank) + valence + scale(outDegree) + scale(inDegree) |subID) + (1 | traits), data = fullLong, control=lmerControl(optimizer="bobyqa",
+                                 optCtrl=list(maxfun=2e5)))
+```
+
+```{r}
+tab_model(m, collapse.ci = T, show.stat=T, show.r2 = T, show.se = T, string.pred = c("Fixed Effects"), string.est = "Coef.", string.se = "SE", string.stat = "t", digits = 3, emph.p = F, dv.labels = "Rank-Order Stability", df.method = "satterthwaite",show.df=T)
+```
